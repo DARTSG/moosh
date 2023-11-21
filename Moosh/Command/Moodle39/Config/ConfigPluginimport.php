@@ -123,27 +123,6 @@ class ConfigPluginimport extends MooshCommand {
                 $settingname = $setting->getAttribute('name');
                 $settingvalue = $setting->nodeValue;
 
-                if ($setting->hasAttribute('file')) {
-                    $filename = ltrim($settingvalue, '/');
-                    $fileinfo = array(
-                        'contextid' => $context->id,
-                        'component' => $component,
-                        'filearea' => $settingname,
-                        'itemid' => 0,
-                        'filepath' => '/',
-                        'filename' => $filename
-                    );
-
-                    if ($fs->file_exists($fileinfo['contextid'], $fileinfo['component'],
-                        $fileinfo['filearea'], 0, $fileinfo['filepath'], $fileinfo['filename'])) {
-
-                        $fs->delete_area_files($fileinfo['contextid'], $fileinfo['component'], $fileinfo['filearea'], 0);
-                    }
-
-                    $filepath = $this->inputfilepath.$setting->getAttribute('file');
-                    $fs->create_file_from_pathname($fileinfo, $filepath);
-                }
-
                 $todb = new stdClass;
                 $todb->plugin = $component;
                 $todb->name = $settingname;
