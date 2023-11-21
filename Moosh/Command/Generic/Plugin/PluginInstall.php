@@ -25,6 +25,8 @@ class PluginInstall extends MooshCommand
         $this->addOption('r|release:', 'Specify exact version to install e.g. 2019010700');
         $this->addOption('f|force', 'Force installation even if current Moodle version is unsupported.');
         $this->addOption('d|delete', 'If it already exists, automatically delete plugin before installing.');
+        //TODO: this option was added quickly and is not fit for merging into the original moosh repo since a lot of edge cases are ignored at the moment
+        $this->addOption('z|fromzip', 'Install from zip file instead of downloading from moodle.org. You must specify the path to the zip file.');
         $this->addOption('proxy:', 'Proxy URI scheme. Example: tcp://user:pass@host:port. You may also use env var http_proxy.');
     }
 
@@ -51,11 +53,23 @@ class PluginInstall extends MooshCommand
         $this->init();
 
         $pluginname     = $this->arguments[0];
+        $fromzip = $this->expandedOptions['fromzip'] ?? false;
+
+        if ($fromzip) {
+            echo "Installing from zip file\n";
+            // Ensure pluginname is a path to the zip file if --fromzip is specified.
+            if (!file_exists($pluginname) || pathinfo($pluginname, PATHINFO_EXTENSION) !== 'zip') {
+              die("Invalid zip file path: $plugginname\n");
+            }
+
+            $this->install_plugin_from_zip($pluginname, $this->expandedOptions['delete']);
+            return;
+         }
+
         $pluginversion  = null;
         if (!empty($this->expandedOptions['release'])) {
             $pluginversion  = $this->expandedOptions['release'];
         }
-
         $version        = $this->get_plugin_to_install($pluginname, $pluginversion);
         $downloadurl    = $version->downloadurl;
 
@@ -228,5 +242,31 @@ class PluginInstall extends MooshCommand
     public function requireHomeWriteable() {
         return true;
     }
+
+    private function install_plugin_from_zip($zipfile, $delete = false) {
+        $pluginname = pathinfo($zipfile, PATHINFO_FILENAME);
+        $split          = explode('_', $pluginname);
+        $type           = $split[0];
+        $component      = $split[1];
+        $installpath = $this->get_install_path($type);
+        $targetpath = $installpath . DIRECTORY_SEPARATOR . $component;
+
+        if (file_exists($targetpath)) {
+            if ($delete) {
+                echo "Removing previously installed $pluginname from $targetpath\n";
+                run_external_command("rm -rf $targetpath");
+            } else {
+                die("Something already exists at $targetpath - please remove it and try again, or run with the -d option.\n");
+            }
+        }
+
+        echo "Unzipping to $installpath\n";
+        run_external_command("unzip $zipfile -d $installpath");
+
+        echo "Installing {$type}_$component\n";
+        upgrade_noncore(true);
+        echo "Done\n";
+    }
+
 }
 
