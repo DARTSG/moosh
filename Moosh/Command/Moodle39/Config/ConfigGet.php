@@ -34,7 +34,13 @@ class ConfigGet extends MooshCommand
             $name =  trim($this->arguments[1]);
         }
 
-        print_r(get_config($plugin,$name));
+        $config = get_config($plugin,$name);
+
+        if(is_null($name)) {
+            $config = json_encode($config);
+        }
+
+        print_r($config);
         echo "\n";
     }
 
